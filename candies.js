@@ -1,5 +1,19 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+
+const gameStats = {
+	score: 0,
+	combo: 0,
+	maxCombo: 0,
+	missed: 0,
+	rainbows: 0,
+	timeLeft: 60,
+	isGameOver: false
+};
+
+let particles = [];
+let floatingTexts = [];
 
 const boxSprite = new Image();
 boxSprite.src = "./assets/box.png";
@@ -10,11 +24,16 @@ candyRegularSprite.src = "./assets/candyregular.png";
 const candyRainbowSprite = new Image();
 candyRainbowSprite.src = "./assets/candyrainbow.png";
 
+const unicornSprite = new Image();
+unicornSprite.src = "./assets/unicorn.png";
+
 let W, H;
 
 function resize() {
 	W = canvas.width = innerWidth;
 	H = canvas.height = innerHeight;
+
+	ctx.imageSmoothingEnabled = false;
 }
 
 addEventListener("resize", resize);
@@ -31,6 +50,8 @@ const box = {
 	w: 64,
 	h: 64,
 
+	scale: 5,
+
 	t: 0,
 
 	frame: 0,
@@ -42,6 +63,17 @@ const box = {
 	spawnIndex: 0,
 
 	pattern: null
+};
+
+const unicorn = {
+	x: 0,
+	y: 0,
+	w: 32,
+	h: 32,
+
+	scale: 4,
+
+	frame: 0
 };
 
 const BOX_TIMINGS = {
@@ -171,6 +203,7 @@ function update(deltaTime) {
 
 	updateBoxState(deltaTime);
 	updateCandies(deltaTime);
+	updateEffects();
 }
 
 
@@ -184,6 +217,35 @@ function draw() {
 
 	drawBox();
 	drawCandies();
+	drawUnicorn();
+	drawEffects();
+	drawUI();
+}
+
+// -------------------------
+// DRAW UI (HUD)
+// -------------------------
+
+function drawUI() {
+	ctx.font = "bold 24px monospace";
+	ctx.textAlign = "left";
+	ctx.textBaseline = "top"; // Allinea il testo dall'alto
+
+	// 1. Punteggio totale (Bianco)
+	ctx.fillStyle = "#FFFFFF";
+	ctx.fillText(`SCORE: ${gameStats.score}`, 20, 20);
+
+	// 2. Combo attuale (Giallo, lo mostriamo solo se è maggiore di 1)
+	if (gameStats.combo > 1) {
+		ctx.fillStyle = "#FFFF00";
+		ctx.fillText(`COMBO x${gameStats.combo}`, 20, 50);
+	}
+
+	// 3. Caramelle perse (Rosso/Rosa)
+	if (gameStats.missed > 0) {
+		ctx.fillStyle = "#FFC0CB";
+		ctx.fillText(`MISSED: ${gameStats.missed}`, 20, 80);
+	}
 }
 
 
@@ -192,31 +254,20 @@ function draw() {
 // -------------------------
 
 function drawBox() {
-
 	const frameW = 64;
 	const frameH = 64;
-
-	const x = box.x;
-	const y = box.y;
+	const currentScale = box.scale;
 
 	ctx.drawImage(
 		boxSprite,
-
-		// posizione del frame nello sprite sheet
 		box.frame * frameW,
 		0,
-
-		// dimensione del frame
 		frameW,
 		frameH,
-
-		// posizione sul Canvas
-		x - frameW / 2,
-		y - frameH / 2,
-
-		// dimensione visualizzata
-		frameW,
-		frameH
+		Math.round(box.x - (frameW * currentScale) / 2),
+		Math.round(box.y - (frameH * currentScale) / 2),
+		frameW * currentScale,
+		frameH * currentScale
 	);
 }
 
@@ -320,10 +371,9 @@ function updateBoxState(deltaTime) {
 
 function drawCandies() {
 	candies.forEach(candy => {
-		const sprite =
-			candy.type === "rainbow"
-				? candyRainbowSprite
-				: candyRegularSprite;
+		const sprite = candy.type === "rainbow" ? candyRainbowSprite : candyRegularSprite;
+		const currentScale = candy.scale;
+		const size = 16 * currentScale;
 
 		ctx.drawImage(
 			sprite,
@@ -331,10 +381,10 @@ function drawCandies() {
 			0,
 			16,
 			16,
-			candy.x - 8,
-			candy.y - 8,
-			16,
-			16
+			candy.x - size / 2,
+			candy.y - size / 2,
+			size,
+			size
 		);
 	});
 }
@@ -351,19 +401,160 @@ function spawnCandy(index) {
 		vy: -2.2,
 		type: box.pattern.types[index],
 		frame: 0,
-		frameTimer: 0
+		frameTimer: 0,
+
+		scale: 6
 	});
 }
 
 function updateCandies(deltaTime) {
+	candies = candies.filter(candy => {
+		// 1. EATING CANDY
+		if (checkCandyCollision(candy)) {
+			gameStats.combo++;
+			if (gameStats.combo > gameStats.maxCombo) gameStats.maxCombo = gameStats.combo;
 
-	candies = candies.filter(candy => candy.y < H + 50);
+			const basePoints = candy.type === "rainbow" ? 3 : 1;
+			if (candy.type === "rainbow") gameStats.rainbows++;
+
+			const totalPoints = basePoints * gameStats.combo;
+			gameStats.score += totalPoints;
+
+			spawnParticles(candy.x, candy.y, candy.type);
+
+			return false;
+		}
+
+		// 2. MISSING CANDY
+		if (candy.y >= H + 50) {
+			gameStats.missed++;
+			gameStats.combo = 0; // restart combo
+			return false; // remove the candy
+		}
+
+		return true;
+	});
+
 	candies.forEach(candy => {
 		candy.x += candy.vx;
 		candy.y += candy.vy;
-
-		candy.vy += 0.045;
+		candy.vy += 0.045; // gravity
 	});
+}
+
+function checkCandyCollision(candy) {
+	if (unicorn.frame !== 1) {
+		return false;
+	}
+
+	const distanceX = candy.x - unicorn.x;
+	const distanceY = candy.y - unicorn.y;
+
+	const distance = Math.sqrt(
+		distanceX * distanceX +
+		distanceY * distanceY
+	);
+
+	const hitRadius = 12 * unicorn.scale;
+
+	return distance < hitRadius;
+}
+
+// -------------------------
+// UNICORN
+// -------------------------
+
+function drawUnicorn() {
+	const currentScale = unicorn.scale;
+
+	const width = unicorn.w * currentScale;
+	const height = unicorn.h * currentScale;
+
+	ctx.drawImage(
+		unicornSprite,
+		unicorn.frame * unicorn.w,
+		0,
+		unicorn.w,
+		unicorn.h,
+		unicorn.x - width / 2,
+		unicorn.y - height / 2,
+		width,
+		height
+	);
+}
+
+// -------------------------
+// OPEN / CLOSE MOUTH ON CLICK
+// -------------------------
+
+addEventListener("mousedown", (event) => {
+	if (event.button === 0) {
+		unicorn.frame = 1;
+	}
+});
+
+addEventListener("mouseup", (event) => {
+	if (event.button === 0) {
+		unicorn.frame = 0;
+	}
+});
+
+addEventListener("mousemove", (event) => {
+	unicorn.x = event.clientX;
+	unicorn.y = event.clientY;
+});
+
+// -------------------------
+// EATEN CANDY PARTICLES EFFECTS
+// -------------------------
+
+function spawnParticles(x, y, type) {
+	const colors = type === "rainbow"
+		? ["#FF0000", "#00FF00", "#0000FF", "#FFFF00"]
+		: ["#FFFFFF", "#FFC0CB"];
+
+	for (let i = 0; i < 7; i++) {
+		particles.push({
+			x: x,
+			y: y,
+			vx: (Math.random() - 0.5) * 4,
+			vy: (Math.random() - 0.5) * 4,
+			life: 1.0,
+			color: colors[Math.floor(Math.random() * colors.length)]
+		});
+	}
+}
+
+// -------------------------
+// UPDATE EFFECTS
+// -------------------------
+
+function updateEffects() {
+	// update particles life
+	particles = particles.filter(p => {
+		p.x += p.vx;
+		p.y += p.vy;
+		p.life -= 0.01;
+		return p.life > 0;
+	});
+}
+
+// -------------------------
+// DRAW EFFECTS
+// -------------------------
+
+function drawEffects() {
+	ctx.globalAlpha = 1.0;
+
+	// draw particles
+	particles.forEach(p => {
+		ctx.fillStyle = p.color;
+		ctx.fillRect(Math.round(p.x), Math.round(p.y), 6, 6);
+	});
+
+	// draw points+
+	ctx.font = "bold 24px monospace";
+	ctx.textAlign = "center";
 }
 
 // -------------------------

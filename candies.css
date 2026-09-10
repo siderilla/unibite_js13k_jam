@@ -7,9 +7,11 @@ body {
 }
 
 body {
-	background: rgb(158, 11, 163);
+	background: rgb(216, 68, 191);
 }
 
 canvas {
 	display: block;
+	cursor: none;
+	image-rendering: pixelated;
 }
