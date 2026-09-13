@@ -10,10 +10,10 @@ Move your mouse to move the unicorn, hold click to open its mouth and catch the 
 
 # Made with
 
-* Vanilla JavaScript and the HTML5 Canvas API, no libraries or frameworks
-* Pixel art sprites drawn in LibreSprite BY ME!
-* Music and sound effects composed with the SoundBox tracker engine, also BY ME!
-* Custom bitmap pixel font for all in-game text
+- Vanilla JavaScript and the HTML5 Canvas API, no libraries or frameworks
+- Pixel art sprites drawn in LibreSprite BY ME!
+- Music and sound effects composed with the SoundBox tracker engine, also BY ME!
+- Custom bitmap pixel font for all in-game text
 
 Sprites, music and sfx are honestly one of my favorite parts to work on whenever I make a minigame!
 
