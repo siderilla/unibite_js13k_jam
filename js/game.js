@@ -6,6 +6,12 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 
+// motion below is tuned per-frame assuming 60fps; multiplying by
+// deltaTime / FRAME_MS keeps that same speed in real time regardless
+// of the device's actual frame rate (was previously frame-locked, so
+// anything running below 60fps - common on phones - moved in slow motion)
+const FRAME_MS = 1000 / 60;
+
 // -------------------------
 // GAME STATE
 // -------------------------
@@ -207,7 +213,7 @@ function update(deltaTime) {
 	gameStats.timeTimer += deltaTime;
 
 	const boxSpeed = 0.012 + (gameStats.level * 0.0015);
-	box.t += boxSpeed;
+	box.t += boxSpeed * (deltaTime / FRAME_MS);
 
 	// every 1000ms
 	if (gameStats.timeTimer >= 1000) {
@@ -231,7 +237,7 @@ function update(deltaTime) {
 
 	updateBoxState(deltaTime);
 	updateCandies(deltaTime);
-	updateEffects();
+	updateEffects(deltaTime);
 }
 
 // -------------------------
@@ -467,7 +473,7 @@ function updateBoxState(deltaTime) {
 // CANDIES
 // -------------------------
 // The green (rotten/malus) and gold (clock/bonus) tints are pure
-// canvas filters applied at draw time — they work on whatever image
+// canvas filters applied at draw time: they work on whatever image
 // is currently loaded into the sprite, so swapping the sprite sources
 // from base64 to external files doesn't affect them.
 
@@ -586,11 +592,13 @@ function updateCandies(deltaTime) {
 		return true;
 	});
 
+	const timeScale = deltaTime / FRAME_MS;
+
 	candies.forEach(candy => {
-		candy.x += candy.vx;
-		candy.y += candy.vy;
+		candy.x += candy.vx * timeScale;
+		candy.y += candy.vy * timeScale;
 		const currentGravity = 0.045 + (gameStats.level * 0.002);
-		candy.vy += currentGravity;
+		candy.vy += currentGravity * timeScale;
 	});
 }
 
@@ -658,8 +666,8 @@ function handleStartOrRestart() {
 
 		if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
 
-		if (musicReady && musicAudio) {
-			musicAudio.play();
+		if (musicReady) {
+			playMusic();
 		}
 		return true;
 	}
@@ -744,8 +752,8 @@ addEventListener("keydown", (event) => {
 		if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
 
 		// start the actual music
-		if (musicReady && musicAudio) {
-			musicAudio.play();
+		if (musicReady) {
+			playMusic();
 		}
 	}
 });

@@ -47,19 +47,21 @@ function spawnFloatingText(x, y, text, color, size = 6) {
 // UPDATE EFFECTS
 // -------------------------
 
-function updateEffects() {
+function updateEffects(deltaTime) {
+	const timeScale = deltaTime / FRAME_MS;
+
 	// update particles life
 	particles = particles.filter(p => {
-		p.x += p.vx;
-		p.y += p.vy;
-		p.life -= 0.01;
+		p.x += p.vx * timeScale;
+		p.y += p.vy * timeScale;
+		p.life -= 0.01 * timeScale;
 		return p.life > 0;
 	});
 
 	// update floating texts
 	floatingTexts = floatingTexts.filter(t => {
-		t.y += t.vy;
-		t.life -= 0.015;
+		t.y += t.vy * timeScale;
+		t.life -= 0.015 * timeScale;
 		return t.life > 0;
 	});
 }

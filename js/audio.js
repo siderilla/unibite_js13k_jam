@@ -367,8 +367,8 @@ const sfxMunch = {
 // -------------------------
 
 let audioCtx;
-let musicAudio;
-let bufBonus, bufMalus, bufMunch;
+let musicSource;
+let bufMusic, bufBonus, bufMalus, bufMunch;
 let musicReady = false;
 
 let pMusic = new CPlayer(); pMusic.init(song);
@@ -395,18 +395,32 @@ let generateInterval = setInterval(function () {
 
 		audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+		// music goes through an AudioBuffer too (not a Blob-backed <audio> element):
+		// a looping AudioBufferSourceNode loops the decoded samples sample-accurately,
+		// while <audio loop> has an audible gap/stutter at the seam on most browsers
+		bufMusic = pMusic.createAudioBuffer(audioCtx);
 		bufBonus = pBonus.createAudioBuffer(audioCtx);
 		bufMalus = pMalus.createAudioBuffer(audioCtx);
 		bufMunch = pMunch.createAudioBuffer(audioCtx);
 
-		let wave = pMusic.createWave();
-		musicAudio = document.createElement("audio");
-		musicAudio.src = URL.createObjectURL(new Blob([wave], { type: "audio/wav" }));
-		musicAudio.loop = true;
-
 		musicReady = true;
 	}
 }, 0);
+
+// -------------------------
+// MUSIC PLAYER
+// -------------------------
+
+function playMusic() {
+	if (!bufMusic || !audioCtx || musicSource) return;
+	if (audioCtx.state === "suspended") audioCtx.resume();
+
+	musicSource = audioCtx.createBufferSource();
+	musicSource.buffer = bufMusic;
+	musicSource.loop = true;
+	musicSource.connect(audioCtx.destination);
+	musicSource.start();
+}
 
 // -------------------------
 // SFX PLAYER
