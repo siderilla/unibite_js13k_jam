@@ -246,7 +246,7 @@ function drawGameOver() {
 
 	drawPixelText(gameStats.score, W / 2, H / 2 - 20, 10, "#FFFF00", "center");
 
-	drawPixelText("click to restart", W / 2, H / 2 + 80, 4, "#FFC0CB", "center");
+	drawPixelText("tap or click to restart", W / 2, H / 2 + 80, 4, "#FFC0CB", "center");
 
 	drawPixelText(
 		"GITHUB: SIDERILLA",
@@ -269,14 +269,14 @@ function drawStartScreen() {
 	drawPixelText("uni-bite", W / 2, H / 2 - 140, 8, "#ffffff", "center");
 
 	drawPixelText("controls:", W / 2, H / 2 - 50, 4, "#FFFFFF", "center");
-	drawPixelText("move mouse ! hold click to eat", W / 2, H / 2 - 10, 3, "#FFFFFF", "center");
+	drawPixelText("move mouse or finger ! hold to eat", W / 2, H / 2 - 10, 3, "#FFFFFF", "center");
 
 	drawPixelText("green candy: poison", W / 2, H / 2 + 50, 3, "#55FF55", "center");
 	drawPixelText("gold candy: +5 sec", W / 2, H / 2 + 80, 3, "#FFD700", "center");
 
 	drawPixelText("eat rainbows for combos! 3x pts", W / 2, H / 2 + 110, 3, "#FF69B4", "center");
 
-	drawPixelText("click or press key", W / 2, H / 2 + 160, 4, "#ff9dff", "center");
+	drawPixelText("tap, click or press key", W / 2, H / 2 + 160, 4, "#ff9dff", "center");
 	drawPixelText("to start", W / 2, H / 2 + 195, 4, "#ff9dff", "center");
 
 	drawPixelText(
@@ -649,8 +649,9 @@ function drawUnicorn() {
 // OPEN / CLOSE MOUTH ON CLICK & START GAME
 // -------------------------
 
-addEventListener("mousedown", (event) => {
-	// if the game hasn't started yet
+// handles both the "start game" and "restart after game over" taps/clicks;
+// returns true when it did (caller should skip opening the mouth that time)
+function handleStartOrRestart() {
 	if (!gameStats.isGameStarted) {
 		gameStats.isGameStarted = true;
 		lastTime = performance.now();
@@ -660,7 +661,7 @@ addEventListener("mousedown", (event) => {
 		if (musicReady && musicAudio) {
 			musicAudio.play();
 		}
-		return;
+		return true;
 	}
 
 	if (gameStats.isGameOver) {
@@ -680,8 +681,14 @@ addEventListener("mousedown", (event) => {
 
 		box.state = "closed";
 		box.stateTimer = 0;
-		return;
+		return true;
 	}
+
+	return false;
+}
+
+addEventListener("mousedown", (event) => {
+	if (handleStartOrRestart()) return;
 
 	if (event.button === 0) {
 		unicorn.frame = 1;
@@ -698,6 +705,36 @@ addEventListener("mousemove", (event) => {
 	unicorn.x = event.clientX;
 	unicorn.y = event.clientY;
 });
+
+// touch: same behaviour as mouse, mapped from the first finger
+addEventListener("touchstart", (event) => {
+	event.preventDefault();
+
+	const touch = event.touches[0];
+	if (touch) {
+		unicorn.x = touch.clientX;
+		unicorn.y = touch.clientY;
+	}
+
+	if (handleStartOrRestart()) return;
+
+	unicorn.frame = 1;
+}, { passive: false });
+
+addEventListener("touchmove", (event) => {
+	event.preventDefault();
+
+	const touch = event.touches[0];
+	if (touch) {
+		unicorn.x = touch.clientX;
+		unicorn.y = touch.clientY;
+	}
+}, { passive: false });
+
+addEventListener("touchend", (event) => {
+	event.preventDefault();
+	unicorn.frame = 0;
+}, { passive: false });
 
 addEventListener("keydown", (event) => {
 	if (!gameStats.isGameStarted) {

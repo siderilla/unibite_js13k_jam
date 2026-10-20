@@ -4,6 +4,7 @@ body {
 	width: 100%;
 	height: 100%;
 	overflow: hidden;
+	touch-action: none;
 }
 
 body {
@@ -14,4 +15,5 @@ canvas {
 	display: block;
 	cursor: none;
 	image-rendering: pixelated;
+	touch-action: none;
 }
